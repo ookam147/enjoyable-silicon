@@ -43,9 +43,6 @@ static CVReturn _updateDL(CVDisplayLinkRef displayLink,
     NSMutableArray *_mappings;
     NJMapping *_manualMapping;
     CVDisplayLinkRef _displayLink;
-    // Phase 4: Layer switching
-    NJMapping *_deferredSwitchTarget;
-    NSInteger _activeOutputCount;
     // Track which output was triggered for each input UID, so that
     // untrigger goes to the correct object even after mapping changes.
     NSMutableDictionary<NSString *, NJOutput *> *_triggeredOutputs;
@@ -148,7 +145,6 @@ static CVReturn _updateDL(CVDisplayLinkRef displayLink,
             BOOL wasRunning = output.running;
             output.running = YES;
             if (!wasRunning) {
-                _activeOutputCount++;
                 // Remember which output we triggered for this input
                 _triggeredOutputs[inputUID] = output;
             }
@@ -161,17 +157,13 @@ static CVReturn _updateDL(CVDisplayLinkRef displayLink,
             if (triggeredOutput) {
                 triggeredOutput.magnitude = 0;
                 triggeredOutput.running = NO;
-                _activeOutputCount--;
                 [_triggeredOutputs removeObjectForKey:inputUID];
-                [self _checkDeferredSwitchBack];
             } else {
                 // Fallback: try current mapping (for outputs that weren't tracked)
                 NJOutput *output = self.currentMapping[subInput];
                 if (output && output.running) {
                     output.magnitude = 0;
                     output.running = NO;
-                    _activeOutputCount--;
-                    [self _checkDeferredSwitchBack];
                 }
             }
         }
@@ -446,28 +438,6 @@ static CVReturn _updateDL(CVDisplayLinkRef displayLink,
 - (void)moveMoveMappingFromIndex:(NSInteger)fromIdx toIndex:(NSInteger)toIdx {
     [_mappings moveObjectAtIndex:(NSUInteger)fromIdx toIndex:(NSUInteger)toIdx];
     [self mappingsChanged];
-}
-
-#pragma mark - Layer Switching (Phase 4)
-
-- (void)requestDeferredSwitchBackToMapping:(NJMapping *)mapping {
-    if (_activeOutputCount <= 0) {
-        // No outputs active, switch back immediately
-        _activeOutputCount = 0;
-        [self activateMappingForcibly:mapping];
-    } else {
-        // Defer switch until all active outputs release (Option B)
-        _deferredSwitchTarget = mapping;
-    }
-}
-
-- (void)_checkDeferredSwitchBack {
-    if (_activeOutputCount <= 0 && _deferredSwitchTarget) {
-        _activeOutputCount = 0;
-        NJMapping *target = _deferredSwitchTarget;
-        _deferredSwitchTarget = nil;
-        [self activateMappingForcibly:target];
-    }
 }
 
 @end

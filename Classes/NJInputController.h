@@ -42,10 +42,8 @@
 
 - (NJInputPathElement *)elementForUID:(NSString *)uid;
 
-// Layer switching: request deferred switch-back after momentary mode release.
-// Actual switch happens when all other active outputs have released (Option B).
-- (void)requestDeferredSwitchBackToMapping:(NJMapping *)mapping;
-
+// Force-activate a mapping (used by Momentary layer switching).
+- (void)activateMappingForcibly:(NJMapping *)mapping;
 @end
 
 @protocol NJInputControllerDelegate

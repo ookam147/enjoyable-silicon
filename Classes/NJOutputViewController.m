@@ -23,14 +23,15 @@
 #import "NSView+FirstResponder.h"
 #import "NSMenu+RepresentedObjectAccessors.h"
 
+// These enum values MUST match the XIB radio button matrix row order exactly.
+// DO NOT add or remove rows from the matrix!
 typedef NS_ENUM(NSUInteger, NJOutputRow) {
-    NJOutputRowNone,
-    NJOutputRowKey,
-    NJOutputRowSwitch,
-    NJOutputRowMove,
-    NJOutputRowButton,
-    NJOutputRowScroll,
-    NJOutputRowKeyCombination,
+    NJOutputRowNone,     // row 0: "Do nothing"
+    NJOutputRowKey,      // row 1: "Press a key:" (also used for key combinations)
+    NJOutputRowSwitch,   // row 2: "Switch to mapping:"
+    NJOutputRowMove,     // row 3: "Move the mouse:"
+    NJOutputRowButton,   // row 4: "Press a mouse button:"
+    NJOutputRowScroll,   // row 5: "Scroll the mouse:"
 };
 
 @implementation NJOutputViewController {
@@ -60,23 +61,34 @@ typedef NS_ENUM(NSUInteger, NJOutputRow) {
         return;
     _dynamicUICreated = YES;
 
-    // --- Add "Key combination:" radio button row to the matrix ---
-    NSInteger rowCount = self.radioButtons.numberOfRows;
-    [self.radioButtons addRow];
-    NSButtonCell *comboCell = [self.radioButtons cellAtRow:rowCount column:0];
-    comboCell.title = @"Key combination:";
-    comboCell.enabled = YES;  // Must be YES so user can click it!
-
-    // Resize the matrix to fit the new row
-    [self.radioButtons sizeToCells];
-
+    // DO NOT modify the radio button matrix (no addRow!)
+    // All new controls are added as separate subviews.
     NSView *parentView = self.radioButtons.superview;
 
-    // --- Mapping switch mode selector: position below the mapping popup ---
+    // --- Modifier checkboxes: placed below the keyInput field (row 1) ---
+    NSRect keyFrame = self.keyInput.frame;
+    CGFloat modY = NSMinY(keyFrame) - 22;  // below the key input
+    CGFloat modWidth = keyFrame.size.width / 4.0f;
+    CGFloat modX = keyFrame.origin.x;
+
+    NSArray *modLabels = @[@"⌃ Ctrl", @"⌥ Opt", @"⇧ Shift", @"⌘ Cmd"];
+    NSArray *modProps = @[@"modifierControl", @"modifierOption", @"modifierShift", @"modifierCommand"];
+    for (int i = 0; i < 4; i++) {
+        NSButton *check = [NSButton checkboxWithTitle:modLabels[i]
+                                               target:self
+                                               action:@selector(_comboModifierChanged:)];
+        check.frame = NSMakeRect(modX, modY, modWidth, 18);
+        check.font = [NSFont systemFontOfSize:10];
+        [parentView addSubview:check];
+        [self setValue:check forKey:modProps[i]];
+        modX += modWidth;
+    }
+
+    // --- Toggle/Momentary selector: placed below the mapping popup (row 2) ---
     NSRect popupFrame = self.mappingPopup.frame;
-    CGFloat switchModeY = NSMinY(popupFrame) - 26;
+    CGFloat switchY = NSMinY(popupFrame) - 24;
     self.mappingSwitchModeSelect = [[NSSegmentedControl alloc] initWithFrame:
-        NSMakeRect(popupFrame.origin.x, switchModeY, popupFrame.size.width, 22)];
+        NSMakeRect(popupFrame.origin.x, switchY, popupFrame.size.width, 20)];
     self.mappingSwitchModeSelect.segmentCount = 2;
     [self.mappingSwitchModeSelect setLabel:@"Toggle" forSegment:0];
     [self.mappingSwitchModeSelect setLabel:@"Momentary" forSegment:1];
@@ -85,36 +97,11 @@ typedef NS_ENUM(NSUInteger, NJOutputRow) {
     self.mappingSwitchModeSelect.target = self;
     self.mappingSwitchModeSelect.action = @selector(_mappingSwitchModeChanged:);
     [parentView addSubview:self.mappingSwitchModeSelect];
-
-    // --- Key combination UI: position relative to keyInput field ---
-    CGFloat baseX = self.keyInput.frame.origin.x;
-    CGFloat keyInputWidth = self.keyInput.frame.size.width;
-    // Position below the radio button matrix
-    CGFloat comboY = NSMinY(self.radioButtons.frame) - 8;
-
-    // Modifier checkboxes in a horizontal row
-    NSArray *modLabels = @[@"⌃ Ctrl", @"⌥ Opt", @"⇧ Shift", @"⌘ Cmd"];
-    NSArray *modProps = @[@"modifierControl", @"modifierOption", @"modifierShift", @"modifierCommand"];
-    CGFloat checkWidth = keyInputWidth / 4.0f;
-    CGFloat checkX = baseX;
-    for (int i = 0; i < 4; i++) {
-        NSButton *check = [NSButton checkboxWithTitle:modLabels[i] target:self action:@selector(_comboModifierChanged:)];
-        check.frame = NSMakeRect(checkX, comboY, checkWidth, 18);
-        check.font = [NSFont systemFontOfSize:11];
-        [parentView addSubview:check];
-        [self setValue:check forKey:modProps[i]];
-        checkX += checkWidth;
-    }
-
-    // Key input field for the main key (below checkboxes)
-    self.comboKeyInput = [[NJKeyInputField alloc] initWithFrame:
-        NSMakeRect(baseX, comboY - 26, keyInputWidth, 22)];
-    self.comboKeyInput.delegate = self;
-    [parentView addSubview:self.comboKeyInput];
 }
 
 - (void)_comboModifierChanged:(NSButton *)sender {
-    [self.radioButtons selectCellAtRow:NJOutputRowKeyCombination column:0];
+    // Clicking a modifier checkbox auto-selects the "Press a key" row
+    [self.radioButtons selectCellAtRow:NJOutputRowKey column:0];
     [self commit];
 }
 
@@ -132,8 +119,20 @@ typedef NS_ENUM(NSUInteger, NJOutputRow) {
     if (row != NJOutputRowKey) {
         self.keyInput.keyCode = NJKeyInputFieldEmpty;
         [self.keyInput resignIfFirstResponder];
+        // Clear modifier checkboxes when not in key mode
+        self.modifierCommand.state = NSControlStateValueOff;
+        self.modifierShift.state = NSControlStateValueOff;
+        self.modifierOption.state = NSControlStateValueOff;
+        self.modifierControl.state = NSControlStateValueOff;
     }
-    
+
+    // Show modifier checkboxes only when key row is selected
+    BOOL showModifiers = (row == NJOutputRowKey);
+    self.modifierCommand.hidden = !showModifiers;
+    self.modifierShift.hidden = !showModifiers;
+    self.modifierOption.hidden = !showModifiers;
+    self.modifierControl.hidden = !showModifiers;
+
     if (row != NJOutputRowSwitch) {
         [self.mappingPopup selectItemAtIndex:-1];
         [self.mappingPopup resignIfFirstResponder];
@@ -173,26 +172,6 @@ typedef NS_ENUM(NSUInteger, NJOutputRow) {
         if (self.scrollDirSelect.selectedSegment == -1)
             self.scrollDirSelect.selectedSegment = 0;
     }
-
-    if (row != NJOutputRowKeyCombination) {
-        self.comboKeyInput.keyCode = NJKeyInputFieldEmpty;
-        [self.comboKeyInput resignIfFirstResponder];
-        self.modifierCommand.state = NSControlStateValueOff;
-        self.modifierShift.state = NSControlStateValueOff;
-        self.modifierOption.state = NSControlStateValueOff;
-        self.modifierControl.state = NSControlStateValueOff;
-        self.comboKeyInput.hidden = YES;
-        self.modifierCommand.hidden = YES;
-        self.modifierShift.hidden = YES;
-        self.modifierOption.hidden = YES;
-        self.modifierControl.hidden = YES;
-    } else {
-        self.comboKeyInput.hidden = NO;
-        self.modifierCommand.hidden = NO;
-        self.modifierShift.hidden = NO;
-        self.modifierOption.hidden = NO;
-        self.modifierControl.hidden = NO;
-    }
 }
 
 #pragma mark - Actions
@@ -201,27 +180,17 @@ typedef NS_ENUM(NSUInteger, NJOutputRow) {
     [sender.window makeFirstResponder:sender];
     if (self.radioButtons.selectedRow == NJOutputRowKey)
         [self.keyInput.window makeFirstResponder:self.keyInput];
-    else if (self.radioButtons.selectedRow == NJOutputRowKeyCombination)
-        [self.comboKeyInput.window makeFirstResponder:self.comboKeyInput];
     [self commit];
 }
 
 - (void)keyInputField:(NJKeyInputField *)keyInput didChangeKey:(CGKeyCode)keyCode {
-    if (keyInput == self.keyInput) {
-        [self.radioButtons selectCellAtRow:NJOutputRowKey column:0];
-    } else if (keyInput == self.comboKeyInput) {
-        [self.radioButtons selectCellAtRow:NJOutputRowKeyCombination column:0];
-    }
+    [self.radioButtons selectCellAtRow:NJOutputRowKey column:0];
     [self.radioButtons.window makeFirstResponder:self.radioButtons];
     [self commit];
 }
 
 - (void)keyInputFieldDidClear:(NJKeyInputField *)keyInput {
-    if (keyInput == self.keyInput) {
-        [self.radioButtons selectCellAtRow:NJOutputRowNone column:0];
-    } else if (keyInput == self.comboKeyInput) {
-        [self.radioButtons selectCellAtRow:NJOutputRowNone column:0];
-    }
+    [self.radioButtons selectCellAtRow:NJOutputRowNone column:0];
     [self commit];
 }
 
@@ -298,6 +267,13 @@ typedef NS_ENUM(NSUInteger, NJOutputRow) {
     return flags;
 }
 
+- (BOOL)_hasModifiers {
+    return self.modifierCommand.state == NSControlStateValueOn
+        || self.modifierShift.state == NSControlStateValueOn
+        || self.modifierOption.state == NSControlStateValueOn
+        || self.modifierControl.state == NSControlStateValueOn;
+}
+
 #pragma mark - Make Output
 
 - (NJOutput *)makeOutput {
@@ -306,13 +282,21 @@ typedef NS_ENUM(NSUInteger, NJOutputRow) {
             return nil;
         case NJOutputRowKey:
             if (self.keyInput.hasKeyCode) {
-                NJOutputKeyPress *k = [[NJOutputKeyPress alloc] init];
-                k.keyCode = self.keyInput.keyCode;
-                return k;
+                if ([self _hasModifiers]) {
+                    // Has modifier checkboxes checked → key combination
+                    NJOutputKeyCombination *kc = [[NJOutputKeyCombination alloc] init];
+                    kc.keyCode = self.keyInput.keyCode;
+                    kc.modifierFlags = [self _currentModifierFlags];
+                    return kc;
+                } else {
+                    // No modifiers → simple key press
+                    NJOutputKeyPress *k = [[NJOutputKeyPress alloc] init];
+                    k.keyCode = self.keyInput.keyCode;
+                    return k;
+                }
             } else {
                 return nil;
             }
-            break;
         case NJOutputRowSwitch: {
             NJOutputMapping *c = [[NJOutputMapping alloc] init];
             c.mapping = [self.delegate outputViewController:self
@@ -324,8 +308,8 @@ typedef NS_ENUM(NSUInteger, NJOutputRow) {
             NJOutputMouseMove *mm = [[NJOutputMouseMove alloc] init];
             mm.axis = (int)self.mouseDirSelect.selectedSegment;
             mm.speed = self.mouseSpeedSlider.floatValue;
-            mm.exponent = 2.0f;       // default curve
-            mm.inputDeadzone = 0.08f;  // default deadzone
+            mm.exponent = 2.0f;
+            mm.inputDeadzone = 0.08f;
             mm.set = self.setCheck.state == NSControlStateValueOn;
             return mm;
         }
@@ -340,16 +324,6 @@ typedef NS_ENUM(NSUInteger, NJOutputRow) {
             ms.speed = self.scrollSpeedSlider.floatValue;
             ms.smooth = self.smoothCheck.state == NSControlStateValueOn;
             return ms;
-        }
-        case NJOutputRowKeyCombination: {
-            if (self.comboKeyInput.hasKeyCode) {
-                NJOutputKeyCombination *kc = [[NJOutputKeyCombination alloc] init];
-                kc.keyCode = self.comboKeyInput.keyCode;
-                kc.modifierFlags = [self _currentModifierFlags];
-                return kc;
-            } else {
-                return nil;
-            }
         }
         default:
             return nil;
@@ -379,7 +353,6 @@ typedef NS_ENUM(NSUInteger, NJOutputRow) {
     self.smoothCheck.enabled = enabled;
     self.setCheck.enabled = enabled;
     self.scrollSpeedSlider.enabled = enabled && self.smoothCheck.state;
-    self.comboKeyInput.enabled = enabled;
     self.modifierCommand.enabled = enabled;
     self.modifierShift.enabled = enabled;
     self.modifierOption.enabled = enabled;
@@ -404,13 +377,20 @@ typedef NS_ENUM(NSUInteger, NJOutputRow) {
         self.title.stringValue = inpFullName;
     }
 
+    // Clear all modifier checkboxes first
+    self.modifierCommand.state = NSControlStateValueOff;
+    self.modifierShift.state = NSControlStateValueOff;
+    self.modifierOption.state = NSControlStateValueOff;
+    self.modifierControl.state = NSControlStateValueOff;
+
     if ([output isKindOfClass:NJOutputKeyPress.class]) {
         [self.radioButtons selectCellAtRow:NJOutputRowKey column:0];
         self.keyInput.keyCode = [(NJOutputKeyPress*)output keyCode];
     } else if ([output isKindOfClass:NJOutputKeyCombination.class]) {
+        // Key combination: select "Press a key:" row, set key + modifiers
         NJOutputKeyCombination *combo = (NJOutputKeyCombination *)output;
-        [self.radioButtons selectCellAtRow:NJOutputRowKeyCombination column:0];
-        self.comboKeyInput.keyCode = combo.keyCode;
+        [self.radioButtons selectCellAtRow:NJOutputRowKey column:0];
+        self.keyInput.keyCode = combo.keyCode;
         CGEventFlags flags = combo.modifierFlags;
         self.modifierCommand.state = (flags & kCGEventFlagMaskCommand) ? NSControlStateValueOn : NSControlStateValueOff;
         self.modifierShift.state = (flags & kCGEventFlagMaskShift) ? NSControlStateValueOn : NSControlStateValueOff;
@@ -453,8 +433,6 @@ typedef NS_ENUM(NSUInteger, NJOutputRow) {
 - (void)focusKey {
     if (self.radioButtons.selectedRow <= 1)
         [self.keyInput.window makeFirstResponder:self.keyInput];
-    else if (self.radioButtons.selectedRow == NJOutputRowKeyCombination)
-        [self.comboKeyInput.window makeFirstResponder:self.comboKeyInput];
     else
         [self.keyInput resignIfFirstResponder];
 }

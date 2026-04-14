@@ -3,10 +3,9 @@
 //  Enjoyable
 //
 //  Sends a key combination (modifier keys + main key) via CGEvent.
-//  Strictly follows the OS modifier ordering convention:
-//    Modifiers Down → Main Key Down → Main Key Up → Modifiers Up (reverse)
-//
-//  Repeat only re-fires the main key while holding modifiers steady.
+//  Uses kCGEventFlagsChanged to update global modifier state (not individual
+//  modifier keyDown events), then sends the main key with flags set.
+//  This is the correct way to simulate system-level shortcuts on macOS.
 //
 
 #import <CoreGraphics/CoreGraphics.h>
@@ -17,7 +16,6 @@
 #import "NJKeyRepeatManager.h"
 
 // Map from CGEventFlags bitmask to virtual key codes for individual modifiers.
-// Order: Command, Shift, Option, Control (pressed in this order, released in reverse).
 typedef struct {
     CGEventFlags flag;
     CGKeyCode keyCode;
@@ -64,25 +62,36 @@ static const int kModifierCount = 4;
     return output;
 }
 
-#pragma mark - Modifier key press/release helpers
+#pragma mark - Modifier state via kCGEventFlagsChanged
 
+// Send kCGEventFlagsChanged events to update global modifier state.
+// Each event carries the CUMULATIVE flags, building up from zero.
 - (void)_pressModifiers {
+    CGEventFlags cumulative = 0;
     for (int i = 0; i < kModifierCount; i++) {
         if (_modifierFlags & kModifiers[i].flag) {
-            CGEventRef ev = CGEventCreateKeyboardEvent(NULL, kModifiers[i].keyCode, YES);
-            CGEventPost(kCGHIDEventTap, ev);
-            CFRelease(ev);
+            cumulative |= kModifiers[i].flag;
+            CGEventRef flagEvent = CGEventCreateKeyboardEvent(NULL, kModifiers[i].keyCode, YES);
+            CGEventSetType(flagEvent, kCGEventFlagsChanged);
+            CGEventSetFlags(flagEvent, cumulative);
+            CGEventPost(kCGHIDEventTap, flagEvent);
+            CFRelease(flagEvent);
         }
     }
 }
 
+// Release modifiers by sending kCGEventFlagsChanged with cumulative
+// flags DECREASING (reverse order).
 - (void)_releaseModifiers {
-    // Release in reverse order
+    CGEventFlags cumulative = _modifierFlags;
     for (int i = kModifierCount - 1; i >= 0; i--) {
         if (_modifierFlags & kModifiers[i].flag) {
-            CGEventRef ev = CGEventCreateKeyboardEvent(NULL, kModifiers[i].keyCode, NO);
-            CGEventPost(kCGHIDEventTap, ev);
-            CFRelease(ev);
+            cumulative &= ~kModifiers[i].flag;
+            CGEventRef flagEvent = CGEventCreateKeyboardEvent(NULL, kModifiers[i].keyCode, NO);
+            CGEventSetType(flagEvent, kCGEventFlagsChanged);
+            CGEventSetFlags(flagEvent, cumulative);
+            CGEventPost(kCGHIDEventTap, flagEvent);
+            CFRelease(flagEvent);
         }
     }
 }
@@ -103,7 +112,6 @@ static const int kModifierCount = 4;
     CFRelease(keyUp);
 }
 
-// For repeat: only re-fire the main key (modifiers stay held)
 - (void)_sendMainKeyTap {
     [self _sendMainKeyDown];
     [self _sendMainKeyUp];
@@ -115,10 +123,10 @@ static const int kModifierCount = 4;
     if (_keyCode == NJKeyInputFieldEmpty)
         return;
 
-    // 1. Press modifier keys
+    // 1. Update global modifier state via flagsChanged events
     [self _pressModifiers];
 
-    // 2. Press main key
+    // 2. Send main key down with modifier flags
     [self _sendMainKeyDown];
 
     // 3. Start repeat if enabled (repeats main key only)
@@ -133,13 +141,12 @@ static const int kModifierCount = 4;
 }
 
 - (void)untrigger {
-    // Stop repeating
     [_repeatManager stopRepeating];
 
     if (_keyCode == NJKeyInputFieldEmpty)
         return;
 
-    // Release in correct order: main key up, then modifiers up (reverse)
+    // Release in correct order: main key up, then clear modifier state
     [self _sendMainKeyUp];
     [self _releaseModifiers];
 }

@@ -66,10 +66,9 @@
 
 - (void)untrigger {
     if (_switchMode == NJMappingSwitchModeMomentary && _previousMapping) {
-        // Option B: request deferred switch back — waits for all other
-        // active outputs to release before actually switching.
+        // Immediately switch back to previous mapping when button is released.
         EnjoyableApplicationDelegate *ctrl = (EnjoyableApplicationDelegate *)NSApplication.sharedApplication.delegate;
-        [ctrl.ic requestDeferredSwitchBackToMapping:_previousMapping];
+        [ctrl.ic activateMappingForcibly:_previousMapping];
         _previousMapping = nil;
     }
 }

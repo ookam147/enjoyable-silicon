@@ -251,6 +251,25 @@ const CGKeyCode NJKeyInputFieldEmpty = kVK_MAX;
     }
 }
 
+// Override to intercept arrow keys and other keys that the responder chain
+// would normally consume (Tab, Escape, etc.) before they reach keyDown:.
+- (BOOL)performKeyEquivalent:(NSEvent *)event {
+    if (self == self.window.firstResponder && self.isEnabled && !event.isARepeat) {
+        CGKeyCode code = event.keyCode;
+        // Capture arrow keys, Tab, Escape, and function keys
+        if (code == kVK_LeftArrow || code == kVK_RightArrow ||
+            code == kVK_UpArrow || code == kVK_DownArrow ||
+            code == kVK_Tab || code == kVK_Escape ||
+            (code >= kVK_F1 && code <= kVK_F20)) {
+            self.keyCode = code;
+            [self.delegate keyInputField:self didChangeKey:self.keyCode];
+            [self resignIfFirstResponder];
+            return YES;  // consumed
+        }
+    }
+    return [super performKeyEquivalent:event];
+}
+
 static BOOL isValidKeyCode(long code) {
     return code < 0xFFFF && code >= 0;
 }
