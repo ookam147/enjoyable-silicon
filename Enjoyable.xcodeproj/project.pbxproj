@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		8D11072F0486CEB800E47090 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */; };
+		AA0001001700000000AA0003 /* NJKeyRepeatManager.m in Sources */ = {isa = PBXBuildFile; fileRef = AA0001001700000000AA0002 /* NJKeyRepeatManager.m */; };
+		AA0001001700000000AA0006 /* NJOutputKeyCombination.m in Sources */ = {isa = PBXBuildFile; fileRef = AA0001001700000000AA0005 /* NJOutputKeyCombination.m */; };
 		D594BF000FAE7397007A85F2 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D594BEFF0FAE7397007A85F2 /* IOKit.framework */; };
 		EE1F3CEA16EF4182008C6426 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = EE1F3CE816EF4182008C6426 /* Localizable.strings */; };
 		EE35A6E417BBCC9500413995 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EE35A6E317BBCC9500413995 /* CoreVideo.framework */; };
@@ -51,8 +53,6 @@
 		EEF17D6A16E8E2EF00D7DC4D /* NJOutputMouseButton.m in Sources */ = {isa = PBXBuildFile; fileRef = EEF17D5716E8E2EF00D7DC4D /* NJOutputMouseButton.m */; };
 		EEF17D6B16E8E2EF00D7DC4D /* NJOutputMouseMove.m in Sources */ = {isa = PBXBuildFile; fileRef = EEF17D5916E8E2EF00D7DC4D /* NJOutputMouseMove.m */; };
 		EEF17D6C16E8E2EF00D7DC4D /* NJOutputMouseScroll.m in Sources */ = {isa = PBXBuildFile; fileRef = EEF17D5B16E8E2EF00D7DC4D /* NJOutputMouseScroll.m */; };
-		AA0001001700000000AA0003 /* NJKeyRepeatManager.m in Sources */ = {isa = PBXBuildFile; fileRef = AA0001001700000000AA0002 /* NJKeyRepeatManager.m */; };
-		AA0001001700000000AA0006 /* NJOutputKeyCombination.m in Sources */ = {isa = PBXBuildFile; fileRef = AA0001001700000000AA0005 /* NJOutputKeyCombination.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -75,6 +75,10 @@
 		29B97325FDCFA39411CA2CEA /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = /System/Library/Frameworks/Foundation.framework; sourceTree = "<absolute>"; };
 		8D1107310486CEB800E47090 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		8D1107320486CEB800E47090 /* Enjoyable.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Enjoyable.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA0001001700000000AA0001 /* NJKeyRepeatManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = NJKeyRepeatManager.h; path = Classes/NJKeyRepeatManager.h; sourceTree = "<group>"; };
+		AA0001001700000000AA0002 /* NJKeyRepeatManager.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = NJKeyRepeatManager.m; path = Classes/NJKeyRepeatManager.m; sourceTree = "<group>"; };
+		AA0001001700000000AA0004 /* NJOutputKeyCombination.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = NJOutputKeyCombination.h; path = Classes/NJOutputKeyCombination.h; sourceTree = "<group>"; };
+		AA0001001700000000AA0005 /* NJOutputKeyCombination.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = NJOutputKeyCombination.m; path = Classes/NJOutputKeyCombination.m; sourceTree = "<group>"; };
 		D594BEFF0FAE7397007A85F2 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = /System/Library/Frameworks/IOKit.framework; sourceTree = "<absolute>"; };
 		EE1F3CE916EF4182008C6426 /* English */ = {isa = PBXFileReference; fileEncoding = 10; lastKnownFileType = text.plist.strings; name = English; path = Resources/English.lproj/Localizable.strings; sourceTree = "<group>"; };
 		EE35A6E317BBCC9500413995 /* CoreVideo.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreVideo.framework; path = System/Library/Frameworks/CoreVideo.framework; sourceTree = SDKROOT; };
@@ -150,10 +154,6 @@
 		EEF17D5916E8E2EF00D7DC4D /* NJOutputMouseMove.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = NJOutputMouseMove.m; path = Classes/NJOutputMouseMove.m; sourceTree = "<group>"; };
 		EEF17D5A16E8E2EF00D7DC4D /* NJOutputMouseScroll.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = NJOutputMouseScroll.h; path = Classes/NJOutputMouseScroll.h; sourceTree = "<group>"; };
 		EEF17D5B16E8E2EF00D7DC4D /* NJOutputMouseScroll.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = NJOutputMouseScroll.m; path = Classes/NJOutputMouseScroll.m; sourceTree = "<group>"; };
-		AA0001001700000000AA0001 /* NJKeyRepeatManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = NJKeyRepeatManager.h; path = Classes/NJKeyRepeatManager.h; sourceTree = "<group>"; };
-		AA0001001700000000AA0002 /* NJKeyRepeatManager.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = NJKeyRepeatManager.m; path = Classes/NJKeyRepeatManager.m; sourceTree = "<group>"; };
-		AA0001001700000000AA0004 /* NJOutputKeyCombination.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = NJOutputKeyCombination.h; path = Classes/NJOutputKeyCombination.h; sourceTree = "<group>"; };
-		AA0001001700000000AA0005 /* NJOutputKeyCombination.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = NJOutputKeyCombination.m; path = Classes/NJOutputKeyCombination.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -541,7 +541,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				COPY_PHASE_STRIP = NO;
-				DEVELOPMENT_TEAM = 7C7HHTKYSS;
+				DEVELOPMENT_TEAM = 3M52NWWZR9;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS = YES;
 				GCC_WARN_FOUR_CHARACTER_CONSTANTS = YES;
@@ -564,7 +564,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = 7C7HHTKYSS;
+				DEVELOPMENT_TEAM = 3M52NWWZR9;
 				GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS = YES;
 				GCC_WARN_FOUR_CHARACTER_CONSTANTS = YES;
 				INFOPLIST_FILE = Info.plist;
@@ -580,6 +580,10 @@
 		C01FCF4F08A954540054247B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ARCHS = (
+					arm64,
+					x86_64,
+				);
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
@@ -627,7 +631,6 @@
 				GCC_WARN_UNUSED_LABEL = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
-				ARCHS = "arm64 x86_64";
 				ONLY_ACTIVE_ARCH = NO;
 				RUN_CLANG_STATIC_ANALYZER = YES;
 				SDKROOT = macosx;
@@ -637,6 +640,10 @@
 		C01FCF5008A954540054247B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ARCHS = (
+					arm64,
+					x86_64,
+				);
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
@@ -681,7 +688,6 @@
 				GCC_WARN_UNUSED_LABEL = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
-				ARCHS = "arm64 x86_64";
 				RUN_CLANG_STATIC_ANALYZER = YES;
 				SDKROOT = macosx;
 			};

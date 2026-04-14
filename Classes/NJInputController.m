@@ -43,9 +43,12 @@ static CVReturn _updateDL(CVDisplayLinkRef displayLink,
     NSMutableArray *_mappings;
     NJMapping *_manualMapping;
     CVDisplayLinkRef _displayLink;
-    // Phase 4: Layer switching deferred switch-back
+    // Phase 4: Layer switching
     NJMapping *_deferredSwitchTarget;
     NSInteger _activeOutputCount;
+    // Track which output was triggered for each input UID, so that
+    // untrigger goes to the correct object even after mapping changes.
+    NSMutableDictionary<NSString *, NJOutput *> *_triggeredOutputs;
 }
 
 #define NSSTR(e) ((NSString *)CFSTR(e))
@@ -129,20 +132,49 @@ static CVReturn _updateDL(CVDisplayLinkRef displayLink,
     NJInput *mainInput = [dev inputForEvent:value];
     [mainInput notifyEvent:value];
     NSArray *children = mainInput.children ? mainInput.children : mainInput ? @[mainInput] : @[];
+
+    if (!_triggeredOutputs)
+        _triggeredOutputs = [NSMutableDictionary new];
+
     for (NJInput *subInput in children) {
-        NJOutput *output = self.currentMapping[subInput];
-        output.magnitude = subInput.magnitude;
-        BOOL wasRunning = output.running;
-        output.running = subInput.active;
-        // Track active output count for deferred layer switch-back
-        if (!wasRunning && output.running)
-            _activeOutputCount++;
-        else if (wasRunning && !output.running) {
-            _activeOutputCount--;
-            [self _checkDeferredSwitchBack];
+        NSString *inputUID = subInput.uid;
+        BOOL isActive = subInput.active;
+
+        if (isActive) {
+            // Input just pressed or still held: get output from CURRENT mapping
+            NJOutput *output = self.currentMapping[subInput];
+            if (!output) continue;
+            output.magnitude = subInput.magnitude;
+            BOOL wasRunning = output.running;
+            output.running = YES;
+            if (!wasRunning) {
+                _activeOutputCount++;
+                // Remember which output we triggered for this input
+                _triggeredOutputs[inputUID] = output;
+            }
+            if ((output.running || output.magnitude != 0) && output.isContinuous)
+                [self addRunningOutput:output];
+        } else {
+            // Input released: untrigger the ORIGINAL output that was triggered,
+            // not the one in the current mapping (which may have changed).
+            NJOutput *triggeredOutput = _triggeredOutputs[inputUID];
+            if (triggeredOutput) {
+                triggeredOutput.magnitude = 0;
+                triggeredOutput.running = NO;
+                _activeOutputCount--;
+                [_triggeredOutputs removeObjectForKey:inputUID];
+                [self _checkDeferredSwitchBack];
+            } else {
+                // Fallback: try current mapping (for outputs that weren't tracked)
+                NJOutput *output = self.currentMapping[subInput];
+                if (output && output.running) {
+                    output.magnitude = 0;
+                    output.running = NO;
+                    _activeOutputCount--;
+                    [self _checkDeferredSwitchBack];
+                }
+            }
         }
-        if ((output.running || output.magnitude != 0) && output.isContinuous)
-            [self addRunningOutput:output];
     }
 }
 

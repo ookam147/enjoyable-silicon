@@ -65,34 +65,18 @@ typedef NS_ENUM(NSUInteger, NJOutputRow) {
     [self.radioButtons addRow];
     NSButtonCell *comboCell = [self.radioButtons cellAtRow:rowCount column:0];
     comboCell.title = @"Key combination:";
-    comboCell.enabled = NO;
+    comboCell.enabled = YES;  // Must be YES so user can click it!
 
-    // --- Key combination UI: modifier checkboxes + key input ---
-    // Position relative to the radio buttons matrix
+    // Resize the matrix to fit the new row
+    [self.radioButtons sizeToCells];
+
     NSView *parentView = self.radioButtons.superview;
-    CGFloat baseX = 191; // Same X as existing key input
-    CGFloat comboY = -6; // Below the scroll controls, near bottom
 
-    // Modifier checkboxes in a horizontal row
-    NSArray *modLabels = @[@"⌃", @"⌥", @"⇧", @"⌘"];
-    NSArray *modProps = @[@"modifierControl", @"modifierOption", @"modifierShift", @"modifierCommand"];
-    CGFloat checkX = baseX;
-    for (int i = 0; i < 4; i++) {
-        NSButton *check = [NSButton checkboxWithTitle:modLabels[i] target:self action:@selector(_comboModifierChanged:)];
-        check.frame = NSMakeRect(checkX, comboY, 42, 18);
-        check.font = [NSFont systemFontOfSize:13];
-        [parentView addSubview:check];
-        [self setValue:check forKey:modProps[i]];
-        checkX += 42;
-    }
-
-    // Key input field for the main key
-    self.comboKeyInput = [[NJKeyInputField alloc] initWithFrame:NSMakeRect(baseX, comboY - 24, 170, 22)];
-    self.comboKeyInput.delegate = self;
-    [parentView addSubview:self.comboKeyInput];
-
-    // --- Mapping switch mode selector (Phase 4) ---
-    self.mappingSwitchModeSelect = [[NSSegmentedControl alloc] initWithFrame:NSMakeRect(baseX, 137, 170, 20)];
+    // --- Mapping switch mode selector: position below the mapping popup ---
+    NSRect popupFrame = self.mappingPopup.frame;
+    CGFloat switchModeY = NSMinY(popupFrame) - 26;
+    self.mappingSwitchModeSelect = [[NSSegmentedControl alloc] initWithFrame:
+        NSMakeRect(popupFrame.origin.x, switchModeY, popupFrame.size.width, 22)];
     self.mappingSwitchModeSelect.segmentCount = 2;
     [self.mappingSwitchModeSelect setLabel:@"Toggle" forSegment:0];
     [self.mappingSwitchModeSelect setLabel:@"Momentary" forSegment:1];
@@ -101,6 +85,32 @@ typedef NS_ENUM(NSUInteger, NJOutputRow) {
     self.mappingSwitchModeSelect.target = self;
     self.mappingSwitchModeSelect.action = @selector(_mappingSwitchModeChanged:);
     [parentView addSubview:self.mappingSwitchModeSelect];
+
+    // --- Key combination UI: position relative to keyInput field ---
+    CGFloat baseX = self.keyInput.frame.origin.x;
+    CGFloat keyInputWidth = self.keyInput.frame.size.width;
+    // Position below the radio button matrix
+    CGFloat comboY = NSMinY(self.radioButtons.frame) - 8;
+
+    // Modifier checkboxes in a horizontal row
+    NSArray *modLabels = @[@"⌃ Ctrl", @"⌥ Opt", @"⇧ Shift", @"⌘ Cmd"];
+    NSArray *modProps = @[@"modifierControl", @"modifierOption", @"modifierShift", @"modifierCommand"];
+    CGFloat checkWidth = keyInputWidth / 4.0f;
+    CGFloat checkX = baseX;
+    for (int i = 0; i < 4; i++) {
+        NSButton *check = [NSButton checkboxWithTitle:modLabels[i] target:self action:@selector(_comboModifierChanged:)];
+        check.frame = NSMakeRect(checkX, comboY, checkWidth, 18);
+        check.font = [NSFont systemFontOfSize:11];
+        [parentView addSubview:check];
+        [self setValue:check forKey:modProps[i]];
+        checkX += checkWidth;
+    }
+
+    // Key input field for the main key (below checkboxes)
+    self.comboKeyInput = [[NJKeyInputField alloc] initWithFrame:
+        NSMakeRect(baseX, comboY - 26, keyInputWidth, 22)];
+    self.comboKeyInput.delegate = self;
+    [parentView addSubview:self.comboKeyInput];
 }
 
 - (void)_comboModifierChanged:(NSButton *)sender {
