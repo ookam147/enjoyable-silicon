@@ -29,6 +29,16 @@
 @property (nonatomic, strong) IBOutlet NSButton *setCheck;
 @property (nonatomic, strong) IBOutlet NSButton *unknownMapping;
 
+// Dynamically created UI for key combination (Phase 3)
+@property (nonatomic, strong) NJKeyInputField *comboKeyInput;
+@property (nonatomic, strong) NSButton *modifierCommand;
+@property (nonatomic, strong) NSButton *modifierShift;
+@property (nonatomic, strong) NSButton *modifierOption;
+@property (nonatomic, strong) NSButton *modifierControl;
+
+// Dynamically created UI for mapping switch mode (Phase 4)
+@property (nonatomic, strong) NSSegmentedControl *mappingSwitchModeSelect;
+
 @property (nonatomic, weak) IBOutlet id <NJOutputViewControllerDelegate> delegate;
 
 - (void)loadOutput:(NJOutput *)output forInput:(NJInput *)input;

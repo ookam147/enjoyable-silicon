@@ -19,6 +19,8 @@
     return @{ @"type": self.class.serializationCode,
               @"axis": @(_axis),
               @"speed": @(_speed),
+              @"exponent": @(_exponent),
+              @"deadzone": @(_inputDeadzone),
               @"set" : @(_set)
               };
 }
@@ -30,6 +32,11 @@
     output.set = [serialization[@"set"] boolValue];
     if (output.speed == 0)
         output.speed = 10;
+    // Load new parameters with sensible defaults for backwards compatibility
+    NSNumber *exp = serialization[@"exponent"];
+    output.exponent = exp ? [exp floatValue] : 2.0f;
+    NSNumber *dz = serialization[@"deadzone"];
+    output.inputDeadzone = dz ? [dz floatValue] : 0.08f;
     return output;
 }
 
@@ -80,21 +87,32 @@ static CGFloat pointRectSquaredDistance(NSPoint p, NSRect r) {
     return mouseLoc;
 }
 
+// Apply exponential acceleration curve to magnitude.
+// With exponent=2.0: light push → very slow, full push → full speed.
+- (float)curvedMagnitude {
+    float absMag = fabsf(self.magnitude);
+    if (absMag < 0.01f)
+        return 0.0f;
+    float sign = (self.magnitude > 0) ? 1.0f : -1.0f;
+    float curved = powf(absMag, _exponent > 0.0f ? _exponent : 2.0f);
+    return sign * curved;
+}
 
 - (NSPoint)moveMouseFrom:(NSPoint)mouseLoc {
     CGFloat dx = 0, dy = 0;
+    float curved = [self curvedMagnitude];
     switch (_axis) {
         case 0:
-            dx = -self.magnitude * _speed;
+            dx = -curved * _speed;
             break;
         case 1:
-            dx = self.magnitude * _speed;
+            dx = curved * _speed;
             break;
         case 2:
-            dy = -self.magnitude * _speed;
+            dy = -curved * _speed;
             break;
         case 3:
-            dy = self.magnitude * _speed;
+            dy = curved * _speed;
             break;
     }
 
@@ -116,7 +134,6 @@ static CGFloat pointRectSquaredDistance(NSPoint p, NSRect r) {
     }
 
     NSRect frame = screen.frame;
-    NSLog(@"%f", self.magnitude);
 
     switch (_axis) {
         case 0:
@@ -134,15 +151,14 @@ static CGFloat pointRectSquaredDistance(NSPoint p, NSRect r) {
     }
 
     mouseLoc = [self clampToScreen:mouseLoc screen:screen];
-    NSLog(@"%f,%f", mouseLoc.x, mouseLoc.y);
 
     return mouseLoc;
 }
 
 
 - (BOOL)update:(NJInputController *)ic {
-
-    if (self.magnitude < 0.05) {
+    // Minimal float noise filter — main deadzone is handled by NJInputAnalog
+    if (self.magnitude < 0.01) {
         if (self.inDeadZone) {
             return NO; // dead zone
         }

@@ -10,9 +10,15 @@
 
 @class NJMapping;
 
+typedef NS_ENUM(NSInteger, NJMappingSwitchMode) {
+    NJMappingSwitchModeToggle,    // Click to switch, click again to switch back
+    NJMappingSwitchModeMomentary, // Hold to stay, release to revert
+};
+
 @interface NJOutputMapping : NJOutput
 
 @property (nonatomic, weak) NJMapping *mapping;
 @property (nonatomic, copy) NSString *mappingName;
+@property (nonatomic, assign) NJMappingSwitchMode switchMode;
 
 @end

@@ -11,5 +11,6 @@
 @interface NJOutputKeyPress : NJOutput
 
 @property (nonatomic, assign) CGKeyCode keyCode;
+@property (nonatomic, assign) BOOL repeatEnabled; // Default YES
 
 @end

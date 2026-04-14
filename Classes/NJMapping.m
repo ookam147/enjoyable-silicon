@@ -37,6 +37,8 @@
 
 - (id)initWithSerialization:(NSDictionary *)serialization {
     if ((self = [self initWithName:serialization[@"name"]])) {
+        // Version check: v1 (no version key) and v2 share the same structure
+        // for entries. Both are handled identically for now.
         NSDictionary *entries = serialization[@"entries"];
         if ([entries isKindOfClass:NSDictionary.class]) {
             for (id key in entries) {
@@ -71,7 +73,7 @@
         if (serialized)
             entries[key] = serialized;
     }
-    return @{ @"name": _name, @"entries": entries };
+    return @{ @"version": @2, @"name": _name, @"entries": entries };
 }
 
 - (BOOL)writeToURL:(NSURL *)url error:(NSError **)error {

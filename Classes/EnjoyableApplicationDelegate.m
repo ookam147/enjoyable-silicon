@@ -57,6 +57,11 @@
     statusItem.button.highlighted = YES;
     statusItem.menu = self.statusItemMenu;
     statusItem.button.target = self;
+
+    // Phase 5: Check Accessibility permissions (required for CGEvent posting).
+    // If not trusted, the system will show an authorization prompt.
+    NSDictionary *options = @{(__bridge id)kAXTrustedCheckOptionPrompt: @YES};
+    AXIsProcessTrustedWithOptions((__bridge CFDictionaryRef)options);
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notification {

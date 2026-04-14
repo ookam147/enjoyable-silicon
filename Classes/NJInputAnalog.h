@@ -12,6 +12,8 @@
 
 @interface NJInputAnalog : NJInput
 
+@property (nonatomic, assign) float deadZone;
+
 - (id)initWithElement:(IOHIDElementRef)element
                 index:(int)index
                parent:(NJInputPathElement *)parent;

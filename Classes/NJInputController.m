@@ -43,6 +43,9 @@ static CVReturn _updateDL(CVDisplayLinkRef displayLink,
     NSMutableArray *_mappings;
     NJMapping *_manualMapping;
     CVDisplayLinkRef _displayLink;
+    // Phase 4: Layer switching deferred switch-back
+    NJMapping *_deferredSwitchTarget;
+    NSInteger _activeOutputCount;
 }
 
 #define NSSTR(e) ((NSString *)CFSTR(e))
@@ -129,7 +132,15 @@ static CVReturn _updateDL(CVDisplayLinkRef displayLink,
     for (NJInput *subInput in children) {
         NJOutput *output = self.currentMapping[subInput];
         output.magnitude = subInput.magnitude;
+        BOOL wasRunning = output.running;
         output.running = subInput.active;
+        // Track active output count for deferred layer switch-back
+        if (!wasRunning && output.running)
+            _activeOutputCount++;
+        else if (wasRunning && !output.running) {
+            _activeOutputCount--;
+            [self _checkDeferredSwitchBack];
+        }
         if ((output.running || output.magnitude != 0) && output.isContinuous)
             [self addRunningOutput:output];
     }
@@ -341,7 +352,17 @@ static CVReturn _updateDL(CVDisplayLinkRef displayLink,
     NSUInteger selected = (NSUInteger)[NSUserDefaults.standardUserDefaults integerForKey:@"selected"];
     NSArray *storedMappings = [NSUserDefaults.standardUserDefaults arrayForKey:@"mappings"];
     NSMutableArray* newMappings = [[NSMutableArray alloc] initWithCapacity:storedMappings.count];
-    
+
+    // Auto-backup old config on first upgrade (Phase 5)
+    if (storedMappings.count > 0) {
+        NSDictionary *first = storedMappings.firstObject;
+        if (![first[@"version"] isKindOfClass:NSNumber.class] || [first[@"version"] intValue] < 2) {
+            if (![NSUserDefaults.standardUserDefaults objectForKey:@"mappings_backup_v1"]) {
+                [NSUserDefaults.standardUserDefaults setObject:storedMappings forKey:@"mappings_backup_v1"];
+            }
+        }
+    }
+
     for (NSDictionary *serialization in storedMappings)
         [newMappings addObject:
          [[NJMapping alloc] initWithSerialization:serialization]];
@@ -393,6 +414,28 @@ static CVReturn _updateDL(CVDisplayLinkRef displayLink,
 - (void)moveMoveMappingFromIndex:(NSInteger)fromIdx toIndex:(NSInteger)toIdx {
     [_mappings moveObjectAtIndex:(NSUInteger)fromIdx toIndex:(NSUInteger)toIdx];
     [self mappingsChanged];
+}
+
+#pragma mark - Layer Switching (Phase 4)
+
+- (void)requestDeferredSwitchBackToMapping:(NJMapping *)mapping {
+    if (_activeOutputCount <= 0) {
+        // No outputs active, switch back immediately
+        _activeOutputCount = 0;
+        [self activateMappingForcibly:mapping];
+    } else {
+        // Defer switch until all active outputs release (Option B)
+        _deferredSwitchTarget = mapping;
+    }
+}
+
+- (void)_checkDeferredSwitchBack {
+    if (_activeOutputCount <= 0 && _deferredSwitchTarget) {
+        _activeOutputCount = 0;
+        NJMapping *target = _deferredSwitchTarget;
+        _deferredSwitchTarget = nil;
+        [self activateMappingForcibly:target];
+    }
 }
 
 @end

@@ -11,11 +11,23 @@ static float normalize(CFIndex p, CFIndex min, CFIndex max) {
     return 2 * (p - min) / (float)(max - min) - 1;
 }
 
+// Re-normalize value after deadzone filtering to eliminate the
+// "jump" from 0 to deadzone threshold. Maps [deadzone, 1.0] → [0, 1.0].
+static float applyDeadzone(float value, float deadzone) {
+    float absVal = fabsf(value);
+    if (absVal < deadzone)
+        return 0.0f;
+    float sign = (value > 0) ? 1.0f : -1.0f;
+    return sign * (absVal - deadzone) / (1.0f - deadzone);
+}
+
 @implementation NJInputAnalog {
     CFIndex _rawMin;
     CFIndex _rawMax;
-    float _deadZone;
 }
+
+// deadZone is now a public @property (declared in .h)
+// Default set in init below.
 
 - (id)initWithElement:(IOHIDElementRef)element
                 index:(int)index
@@ -33,7 +45,7 @@ static float normalize(CFIndex p, CFIndex min, CFIndex max) {
                                                    parent:self]];
         _rawMax = IOHIDElementGetPhysicalMax(element);
         _rawMin = IOHIDElementGetPhysicalMin(element);
-        _deadZone = 0.25f; // (1.0f / (float) (_rawMax - _rawMin)) * 10.0f;
+        _deadZone = 0.08f; // 8% deadzone, suitable for Xbox controllers
     }
     return self;
 }
@@ -49,15 +61,15 @@ static float normalize(CFIndex p, CFIndex min, CFIndex max) {
 }
 
 - (void)notifyEvent:(IOHIDValueRef)value {
-    float magnitude = self.magnitude = normalize(IOHIDValueGetIntegerValue(value), _rawMin, _rawMax);
-    if (fabsf(magnitude) < _deadZone) {
-        magnitude = self.magnitude = 0;
-    }
+    float rawMagnitude = normalize(IOHIDValueGetIntegerValue(value), _rawMin, _rawMax);
+    // Apply deadzone with re-normalization to eliminate jump at threshold
+    float magnitude = applyDeadzone(rawMagnitude, _deadZone);
+    self.magnitude = magnitude;
 
     [self.children[0] setMagnitude:fabsf(MIN(magnitude, 0))];
     [self.children[1] setMagnitude:fabsf(MAX(magnitude, 0))];
-    [self.children[0] setActive:magnitude < -_deadZone];
-    [self.children[1] setActive:magnitude > _deadZone];
+    [self.children[0] setActive:magnitude < 0];
+    [self.children[1] setActive:magnitude > 0];
 }
 
 @end

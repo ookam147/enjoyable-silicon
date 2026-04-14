@@ -13,6 +13,7 @@
 #import "NJOutputMouseMove.h"
 #import "NJOutputMouseButton.h"
 #import "NJOutputMouseScroll.h"
+#import "NJOutputKeyCombination.h"
 
 @implementation NJOutput {
     BOOL running;
@@ -43,6 +44,7 @@
         return nil;
     NSString *type = serialization[@"type"];
     for (Class cls in @[NJOutputKeyPress.class,
+                        NJOutputKeyCombination.class,
                         NJOutputMapping.class,
                         NJOutputMouseMove.class,
                         NJOutputMouseButton.class,

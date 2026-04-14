@@ -51,6 +51,8 @@
 		EEF17D6A16E8E2EF00D7DC4D /* NJOutputMouseButton.m in Sources */ = {isa = PBXBuildFile; fileRef = EEF17D5716E8E2EF00D7DC4D /* NJOutputMouseButton.m */; };
 		EEF17D6B16E8E2EF00D7DC4D /* NJOutputMouseMove.m in Sources */ = {isa = PBXBuildFile; fileRef = EEF17D5916E8E2EF00D7DC4D /* NJOutputMouseMove.m */; };
 		EEF17D6C16E8E2EF00D7DC4D /* NJOutputMouseScroll.m in Sources */ = {isa = PBXBuildFile; fileRef = EEF17D5B16E8E2EF00D7DC4D /* NJOutputMouseScroll.m */; };
+		AA0001001700000000AA0003 /* NJKeyRepeatManager.m in Sources */ = {isa = PBXBuildFile; fileRef = AA0001001700000000AA0002 /* NJKeyRepeatManager.m */; };
+		AA0001001700000000AA0006 /* NJOutputKeyCombination.m in Sources */ = {isa = PBXBuildFile; fileRef = AA0001001700000000AA0005 /* NJOutputKeyCombination.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -148,6 +150,10 @@
 		EEF17D5916E8E2EF00D7DC4D /* NJOutputMouseMove.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = NJOutputMouseMove.m; path = Classes/NJOutputMouseMove.m; sourceTree = "<group>"; };
 		EEF17D5A16E8E2EF00D7DC4D /* NJOutputMouseScroll.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = NJOutputMouseScroll.h; path = Classes/NJOutputMouseScroll.h; sourceTree = "<group>"; };
 		EEF17D5B16E8E2EF00D7DC4D /* NJOutputMouseScroll.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = NJOutputMouseScroll.m; path = Classes/NJOutputMouseScroll.m; sourceTree = "<group>"; };
+		AA0001001700000000AA0001 /* NJKeyRepeatManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = NJKeyRepeatManager.h; path = Classes/NJKeyRepeatManager.h; sourceTree = "<group>"; };
+		AA0001001700000000AA0002 /* NJKeyRepeatManager.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = NJKeyRepeatManager.m; path = Classes/NJKeyRepeatManager.m; sourceTree = "<group>"; };
+		AA0001001700000000AA0004 /* NJOutputKeyCombination.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = NJOutputKeyCombination.h; path = Classes/NJOutputKeyCombination.h; sourceTree = "<group>"; };
+		AA0001001700000000AA0005 /* NJOutputKeyCombination.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = NJOutputKeyCombination.m; path = Classes/NJOutputKeyCombination.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -320,6 +326,10 @@
 				EEF17D5916E8E2EF00D7DC4D /* NJOutputMouseMove.m */,
 				EEF17D5A16E8E2EF00D7DC4D /* NJOutputMouseScroll.h */,
 				EEF17D5B16E8E2EF00D7DC4D /* NJOutputMouseScroll.m */,
+				AA0001001700000000AA0001 /* NJKeyRepeatManager.h */,
+				AA0001001700000000AA0002 /* NJKeyRepeatManager.m */,
+				AA0001001700000000AA0004 /* NJOutputKeyCombination.h */,
+				AA0001001700000000AA0005 /* NJOutputKeyCombination.m */,
 			);
 			name = Output;
 			sourceTree = "<group>";
@@ -447,7 +457,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "cd ${SOURCE_ROOT}/Resources/Help/Contents/Resources/English.lproj\nmake\n";
+			shellScript = "cd \"${SOURCE_ROOT}/Resources/Help/Contents/Resources/English.lproj\"\nif [ -f Makefile ]; then make; else echo 'No Makefile found, skipping help index generation'; fi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -487,6 +497,8 @@
 				EE52145F16F404D500E3C574 /* NJDeviceViewController.m in Sources */,
 				EE83ACEC16F545EA00083E94 /* NJMappingsViewController.m in Sources */,
 				EE48263016F6680D001B0C64 /* NSProcessInfo+Debugging.m in Sources */,
+				AA0001001700000000AA0003 /* NJKeyRepeatManager.m in Sources */,
+				AA0001001700000000AA0006 /* NJOutputKeyCombination.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
