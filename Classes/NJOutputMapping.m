@@ -56,9 +56,11 @@
             break;
 
         case NJMappingSwitchModeMomentary:
-            // Momentary: remember current mapping, switch to target
+            // Momentary: remember current mapping, switch to target.
+            // Use activateMappingForcibly: to avoid overwriting _manualMapping,
+            // since this is a temporary switch that should be transparent.
             _previousMapping = ctrl.ic.currentMapping;
-            [ctrl.ic activateMapping:_mapping];
+            [ctrl.ic activateMappingForcibly:_mapping];
             self.mappingName = _mapping.name;
             break;
     }
