@@ -2,48 +2,27 @@
 //  NJOutputSystemAction.m
 //  Enjoyable
 //
-//  Triggers macOS system-level actions via multiple fallback methods:
-//  1. CoreDock private API (fastest, no subprocess)
-//  2. NSAppleScript fallback for space switching
+//  Triggers macOS system-level actions via NSTask + osascript.
+//  Uses System Events "key code" to simulate the default keyboard shortcuts.
+//  This approach is thread-safe (unlike NSAppleScript) and bypasses CGEvent
+//  limitations for system-level shortcuts.
 //
 
 #import <Cocoa/Cocoa.h>
-#import <CoreGraphics/CoreGraphics.h>
-#import <Carbon/Carbon.h>
-#import <dlfcn.h>
-
 #import "NJOutputSystemAction.h"
 
-// Private CoreDock API — stable since macOS 10.6, used by many third-party tools.
-// Dynamically loaded to avoid linker dependency.
-typedef void (*CoreDockSendNotificationFunc)(CFStringRef);
-
-static CoreDockSendNotificationFunc _GetCoreDockSendNotification(void) {
-    static CoreDockSendNotificationFunc func = NULL;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        void *handle = dlopen("/System/Library/Frameworks/CoreServices.framework/CoreServices", RTLD_LAZY);
-        if (handle) {
-            func = (CoreDockSendNotificationFunc)dlsym(handle, "CoreDockSendNotification");
-        }
-    });
-    return func;
-}
-
-// Fallback: run AppleScript
-static void _RunAppleScript(NSString *source) {
-    NSAppleScript *script = [[NSAppleScript alloc] initWithSource:source];
-    [script executeAndReturnError:nil];
-}
-
-// CGEvent-based source for space switching key simulation
-static CGEventSourceRef _NJHIDSource(void) {
-    static CGEventSourceRef source;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        source = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
-    });
-    return source;
+// Run osascript asynchronously via NSTask (thread-safe, fire-and-forget).
+static void _RunOsascript(NSString *scriptSource) {
+    NSTask *task = [[NSTask alloc] init];
+    task.executableURL = [NSURL fileURLWithPath:@"/usr/bin/osascript"];
+    task.arguments = @[@"-e", scriptSource];
+    task.standardOutput = [NSPipe pipe];
+    task.standardError = [NSPipe pipe];
+    NSError *err = nil;
+    [task launchAndReturnError:&err];
+    if (err) {
+        NSLog(@"NJOutputSystemAction: osascript failed: %@", err);
+    }
 }
 
 @implementation NJOutputSystemAction
@@ -75,82 +54,42 @@ static CGEventSourceRef _NJHIDSource(void) {
 }
 
 - (void)trigger {
-    CoreDockSendNotificationFunc coreDockSend = _GetCoreDockSendNotification();
-
     switch (_action) {
         case NJSystemActionMissionControl:
-            if (coreDockSend) {
-                coreDockSend(CFSTR("com.apple.expose.awesomebar"));
-            } else {
-                _RunAppleScript(@"tell application \"Mission Control\" to launch");
-            }
+            // Ctrl+Up Arrow (key code 126 = kVK_UpArrow)
+            _RunOsascript(@"tell application \"System Events\" to key code 126 using control down");
             break;
 
         case NJSystemActionAppExpose:
-            if (coreDockSend) {
-                coreDockSend(CFSTR("com.apple.expose.front.awesomebar"));
-            } else {
-                _RunAppleScript(@"tell application \"Mission Control\" to launch");
-            }
+            // Ctrl+Down Arrow (key code 125 = kVK_DownArrow)
+            _RunOsascript(@"tell application \"System Events\" to key code 125 using control down");
             break;
 
         case NJSystemActionShowDesktop:
-            if (coreDockSend) {
-                coreDockSend(CFSTR("com.apple.showDesktop"));
-            } else {
-                _RunAppleScript(@"tell application \"System Events\" to key code 160");
-            }
+            // F11 (key code 103 = kVK_F11, default "Show Desktop" shortcut)
+            _RunOsascript(@"tell application \"System Events\" to key code 103");
             break;
 
         case NJSystemActionLaunchpad:
-            if (coreDockSend) {
-                coreDockSend(CFSTR("com.apple.launchpad.toggle"));
-            } else {
-                [[NSWorkspace sharedWorkspace] openURL:
-                    [NSURL fileURLWithPath:@"/System/Applications/Launchpad.app"]];
-            }
+            // Open Launchpad via NSWorkspace (most reliable)
+            [[NSWorkspace sharedWorkspace] openURL:
+                [NSURL fileURLWithPath:@"/System/Applications/Launchpad.app"]];
             break;
 
-        case NJSystemActionMoveLeftSpace: {
-            // Ctrl+Left arrow to switch to left space
-            CGEventRef flagDown = CGEventCreateKeyboardEvent(_NJHIDSource(), kVK_Control, YES);
-            CGEventSetType(flagDown, kCGEventFlagsChanged);
-            CGEventSetFlags(flagDown, kCGEventFlagMaskControl);
-            CGEventPost(kCGHIDEventTap, flagDown);
-            CFRelease(flagDown);
-
-            // Use AppleScript as the reliable method for space switching
-            _RunAppleScript(@"tell application \"System Events\" to key code 123 using control down");
-
-            CGEventRef flagUp = CGEventCreateKeyboardEvent(_NJHIDSource(), kVK_Control, NO);
-            CGEventSetType(flagUp, kCGEventFlagsChanged);
-            CGEventSetFlags(flagUp, 0);
-            CGEventPost(kCGHIDEventTap, flagUp);
-            CFRelease(flagUp);
+        case NJSystemActionMoveLeftSpace:
+            // Ctrl+Left Arrow (key code 123 = kVK_LeftArrow)
+            _RunOsascript(@"tell application \"System Events\" to key code 123 using control down");
             break;
-        }
 
-        case NJSystemActionMoveRightSpace: {
-            CGEventRef flagDown = CGEventCreateKeyboardEvent(_NJHIDSource(), kVK_Control, YES);
-            CGEventSetType(flagDown, kCGEventFlagsChanged);
-            CGEventSetFlags(flagDown, kCGEventFlagMaskControl);
-            CGEventPost(kCGHIDEventTap, flagDown);
-            CFRelease(flagDown);
-
-            _RunAppleScript(@"tell application \"System Events\" to key code 124 using control down");
-
-            CGEventRef flagUp = CGEventCreateKeyboardEvent(_NJHIDSource(), kVK_Control, NO);
-            CGEventSetType(flagUp, kCGEventFlagsChanged);
-            CGEventSetFlags(flagUp, 0);
-            CGEventPost(kCGHIDEventTap, flagUp);
-            CFRelease(flagUp);
+        case NJSystemActionMoveRightSpace:
+            // Ctrl+Right Arrow (key code 124 = kVK_RightArrow)
+            _RunOsascript(@"tell application \"System Events\" to key code 124 using control down");
             break;
-        }
     }
 }
 
 - (void)untrigger {
-    // System actions are fire-and-forget, no release needed.
+    // System actions are fire-and-forget.
 }
 
 @end
