@@ -15,6 +15,17 @@
 #import "NJKeyInputField.h"
 #import "NJKeyRepeatManager.h"
 
+// Use HID system state source so events are visible to system-level
+// shortcut handlers (Mission Control, App Exposé, etc.).
+static CGEventSourceRef _NJHIDSource(void) {
+    static CGEventSourceRef source;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        source = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+    });
+    return source;
+}
+
 // Map from CGEventFlags bitmask to virtual key codes for individual modifiers.
 typedef struct {
     CGEventFlags flag;
@@ -71,7 +82,7 @@ static const int kModifierCount = 4;
     for (int i = 0; i < kModifierCount; i++) {
         if (_modifierFlags & kModifiers[i].flag) {
             cumulative |= kModifiers[i].flag;
-            CGEventRef flagEvent = CGEventCreateKeyboardEvent(NULL, kModifiers[i].keyCode, YES);
+            CGEventRef flagEvent = CGEventCreateKeyboardEvent(_NJHIDSource(), kModifiers[i].keyCode, YES);
             CGEventSetType(flagEvent, kCGEventFlagsChanged);
             CGEventSetFlags(flagEvent, cumulative);
             CGEventPost(kCGHIDEventTap, flagEvent);
@@ -87,7 +98,7 @@ static const int kModifierCount = 4;
     for (int i = kModifierCount - 1; i >= 0; i--) {
         if (_modifierFlags & kModifiers[i].flag) {
             cumulative &= ~kModifiers[i].flag;
-            CGEventRef flagEvent = CGEventCreateKeyboardEvent(NULL, kModifiers[i].keyCode, NO);
+            CGEventRef flagEvent = CGEventCreateKeyboardEvent(_NJHIDSource(), kModifiers[i].keyCode, NO);
             CGEventSetType(flagEvent, kCGEventFlagsChanged);
             CGEventSetFlags(flagEvent, cumulative);
             CGEventPost(kCGHIDEventTap, flagEvent);
@@ -99,14 +110,14 @@ static const int kModifierCount = 4;
 #pragma mark - Main key with modifier flags
 
 - (void)_sendMainKeyDown {
-    CGEventRef keyDown = CGEventCreateKeyboardEvent(NULL, _keyCode, YES);
+    CGEventRef keyDown = CGEventCreateKeyboardEvent(_NJHIDSource(), _keyCode, YES);
     CGEventSetFlags(keyDown, _modifierFlags);
     CGEventPost(kCGHIDEventTap, keyDown);
     CFRelease(keyDown);
 }
 
 - (void)_sendMainKeyUp {
-    CGEventRef keyUp = CGEventCreateKeyboardEvent(NULL, _keyCode, NO);
+    CGEventRef keyUp = CGEventCreateKeyboardEvent(_NJHIDSource(), _keyCode, NO);
     CGEventSetFlags(keyUp, _modifierFlags);
     CGEventPost(kCGHIDEventTap, keyUp);
     CFRelease(keyUp);

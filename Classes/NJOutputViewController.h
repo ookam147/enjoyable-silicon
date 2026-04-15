@@ -39,6 +39,10 @@
 // Dynamically created UI for mapping switch mode (Phase 4)
 @property (nonatomic, strong) NSSegmentedControl *mappingSwitchModeSelect;
 
+// Dynamically created UI for system actions
+@property (nonatomic, strong) NSPopUpButton *systemActionPopup;
+@property (nonatomic, strong) NSButton *systemActionRadio;
+
 @property (nonatomic, weak) IBOutlet id <NJOutputViewControllerDelegate> delegate;
 
 - (void)loadOutput:(NJOutput *)output forInput:(NJInput *)input;

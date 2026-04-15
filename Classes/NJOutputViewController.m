@@ -20,6 +20,7 @@
 #import "NJOutputMouseButton.h"
 #import "NJOutputMouseMove.h"
 #import "NJOutputMouseScroll.h"
+#import "NJOutputSystemAction.h"
 #import "NSView+FirstResponder.h"
 #import "NSMenu+RepresentedObjectAccessors.h"
 
@@ -34,9 +35,12 @@ typedef NS_ENUM(NSUInteger, NJOutputRow) {
     NJOutputRowScroll,   // row 5: "Scroll the mouse:"
 };
 
+static const NSInteger kSystemActionTag = 999;
+
 @implementation NJOutputViewController {
     NJInput *_input;
     BOOL _dynamicUICreated;
+    BOOL _systemActionSelected;
 }
 
 - (id)init {
@@ -67,7 +71,7 @@ typedef NS_ENUM(NSUInteger, NJOutputRow) {
 
     // --- Modifier checkboxes: placed below the keyInput field (row 1) ---
     NSRect keyFrame = self.keyInput.frame;
-    CGFloat modY = NSMinY(keyFrame) - 22;  // below the key input
+    CGFloat modY = NSMinY(keyFrame) - 22;
     CGFloat modWidth = keyFrame.size.width / 4.0f;
     CGFloat modX = keyFrame.origin.x;
 
@@ -97,16 +101,59 @@ typedef NS_ENUM(NSUInteger, NJOutputRow) {
     self.mappingSwitchModeSelect.target = self;
     self.mappingSwitchModeSelect.action = @selector(_mappingSwitchModeChanged:);
     [parentView addSubview:self.mappingSwitchModeSelect];
+
+    // --- System action: standalone radio button + popup below the matrix ---
+    NSRect matrixFrame = self.radioButtons.frame;
+    CGFloat sysY = NSMinY(matrixFrame) - 8;
+    CGFloat labelX = matrixFrame.origin.x + 18; // align with radio labels
+
+    self.systemActionRadio = [[NSButton alloc] initWithFrame:
+        NSMakeRect(matrixFrame.origin.x, sysY, 150, 18)];
+    [self.systemActionRadio setButtonType:NSButtonTypeRadio];
+    self.systemActionRadio.title = @"System action:";
+    self.systemActionRadio.font = [NSFont systemFontOfSize:13];
+    self.systemActionRadio.target = self;
+    self.systemActionRadio.action = @selector(_systemActionRadioClicked:);
+    [parentView addSubview:self.systemActionRadio];
+
+    self.systemActionPopup = [[NSPopUpButton alloc] initWithFrame:
+        NSMakeRect(keyFrame.origin.x, sysY - 2, keyFrame.size.width, 22) pullsDown:NO];
+    [self.systemActionPopup setControlSize:NSControlSizeSmall];
+    self.systemActionPopup.font = [NSFont systemFontOfSize:11];
+    NSArray *titles = [NJOutputSystemAction actionTitles];
+    for (NSString *title in titles) {
+        [self.systemActionPopup addItemWithTitle:title];
+    }
+    self.systemActionPopup.target = self;
+    self.systemActionPopup.action = @selector(_systemActionChosen:);
+    [parentView addSubview:self.systemActionPopup];
 }
 
 - (void)_comboModifierChanged:(NSButton *)sender {
-    // Clicking a modifier checkbox auto-selects the "Press a key" row
+    _systemActionSelected = NO;
+    self.systemActionRadio.state = NSControlStateValueOff;
     [self.radioButtons selectCellAtRow:NJOutputRowKey column:0];
     [self commit];
 }
 
 - (void)_mappingSwitchModeChanged:(NSSegmentedControl *)sender {
+    _systemActionSelected = NO;
+    self.systemActionRadio.state = NSControlStateValueOff;
     [self.radioButtons selectCellAtRow:NJOutputRowSwitch column:0];
+    [self commit];
+}
+
+- (void)_systemActionRadioClicked:(NSButton *)sender {
+    _systemActionSelected = YES;
+    self.systemActionRadio.state = NSControlStateValueOn;
+    [self.radioButtons selectCellAtRow:-1 column:0]; // deselect matrix
+    [self commit];
+}
+
+- (void)_systemActionChosen:(NSPopUpButton *)sender {
+    _systemActionSelected = YES;
+    self.systemActionRadio.state = NSControlStateValueOn;
+    [self.radioButtons selectCellAtRow:-1 column:0]; // deselect matrix
     [self commit];
 }
 
@@ -172,12 +219,25 @@ typedef NS_ENUM(NSUInteger, NJOutputRow) {
         if (self.scrollDirSelect.selectedSegment == -1)
             self.scrollDirSelect.selectedSegment = 0;
     }
+
+    // System action UI visibility
+    if (!_systemActionSelected) {
+        [self.systemActionPopup selectItemAtIndex:0];
+        self.systemActionPopup.hidden = YES;
+        self.systemActionRadio.state = NSControlStateValueOff;
+    } else {
+        self.systemActionPopup.hidden = NO;
+        self.systemActionRadio.state = NSControlStateValueOn;
+    }
 }
 
 #pragma mark - Actions
 
 - (IBAction)outputTypeChanged:(NSView *)sender {
     [sender.window makeFirstResponder:sender];
+    // Clicking any matrix radio deselects the system action
+    _systemActionSelected = NO;
+    self.systemActionRadio.state = NSControlStateValueOff;
     if (self.radioButtons.selectedRow == NJOutputRowKey)
         [self.keyInput.window makeFirstResponder:self.keyInput];
     [self commit];
@@ -277,19 +337,24 @@ typedef NS_ENUM(NSUInteger, NJOutputRow) {
 #pragma mark - Make Output
 
 - (NJOutput *)makeOutput {
+    // System action takes priority (it's outside the matrix)
+    if (_systemActionSelected) {
+        NJOutputSystemAction *sa = [[NJOutputSystemAction alloc] init];
+        sa.action = (NJSystemAction)self.systemActionPopup.indexOfSelectedItem;
+        return sa;
+    }
+
     switch (self.radioButtons.selectedRow) {
         case NJOutputRowNone:
             return nil;
         case NJOutputRowKey:
             if (self.keyInput.hasKeyCode) {
                 if ([self _hasModifiers]) {
-                    // Has modifier checkboxes checked → key combination
                     NJOutputKeyCombination *kc = [[NJOutputKeyCombination alloc] init];
                     kc.keyCode = self.keyInput.keyCode;
                     kc.modifierFlags = [self _currentModifierFlags];
                     return kc;
                 } else {
-                    // No modifiers → simple key press
                     NJOutputKeyPress *k = [[NJOutputKeyPress alloc] init];
                     k.keyCode = self.keyInput.keyCode;
                     return k;
@@ -358,6 +423,8 @@ typedef NS_ENUM(NSUInteger, NJOutputRow) {
     self.modifierOption.enabled = enabled;
     self.modifierControl.enabled = enabled;
     self.mappingSwitchModeSelect.enabled = enabled;
+    self.systemActionRadio.enabled = enabled;
+    self.systemActionPopup.enabled = enabled;
     if (!enabled)
         self.unknownMapping.hidden = YES;
 }
@@ -382,12 +449,17 @@ typedef NS_ENUM(NSUInteger, NJOutputRow) {
     self.modifierShift.state = NSControlStateValueOff;
     self.modifierOption.state = NSControlStateValueOff;
     self.modifierControl.state = NSControlStateValueOff;
+    _systemActionSelected = NO;
 
-    if ([output isKindOfClass:NJOutputKeyPress.class]) {
+    if ([output isKindOfClass:NJOutputSystemAction.class]) {
+        NJOutputSystemAction *sa = (NJOutputSystemAction *)output;
+        _systemActionSelected = YES;
+        [self.radioButtons selectCellAtRow:-1 column:0];
+        [self.systemActionPopup selectItemAtIndex:(NSInteger)sa.action];
+    } else if ([output isKindOfClass:NJOutputKeyPress.class]) {
         [self.radioButtons selectCellAtRow:NJOutputRowKey column:0];
         self.keyInput.keyCode = [(NJOutputKeyPress*)output keyCode];
     } else if ([output isKindOfClass:NJOutputKeyCombination.class]) {
-        // Key combination: select "Press a key:" row, set key + modifiers
         NJOutputKeyCombination *combo = (NJOutputKeyCombination *)output;
         [self.radioButtons selectCellAtRow:NJOutputRowKey column:0];
         self.keyInput.keyCode = combo.keyCode;

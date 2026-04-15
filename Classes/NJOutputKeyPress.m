@@ -11,6 +11,17 @@
 #import "NJKeyInputField.h"
 #import "NJKeyRepeatManager.h"
 
+// Use HID system state source so events are visible to system-level
+// shortcut handlers (Mission Control, App Exposé, etc.).
+static CGEventSourceRef _NJHIDSource(void) {
+    static CGEventSourceRef source;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        source = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+    });
+    return source;
+}
+
 @implementation NJOutputKeyPress {
     NJKeyRepeatManager *_repeatManager;
 }
@@ -44,7 +55,7 @@
 }
 
 - (void)_sendKeyDown {
-    CGEventRef keyDown = CGEventCreateKeyboardEvent(NULL, _keyCode, YES);
+    CGEventRef keyDown = CGEventCreateKeyboardEvent(_NJHIDSource(), _keyCode, YES);
     CGEventPost(kCGHIDEventTap, keyDown);
     CFRelease(keyDown);
 }
@@ -72,7 +83,7 @@
     [_repeatManager stopRepeating];
 
     if (_keyCode != NJKeyInputFieldEmpty) {
-        CGEventRef keyUp = CGEventCreateKeyboardEvent(NULL, _keyCode, NO);
+        CGEventRef keyUp = CGEventCreateKeyboardEvent(_NJHIDSource(), _keyCode, NO);
         CGEventPost(kCGHIDEventTap, keyUp);
         CFRelease(keyUp);
     }
