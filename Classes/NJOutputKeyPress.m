@@ -6,6 +6,7 @@
 //
 
 #import <CoreGraphics/CoreGraphics.h>
+#import <Carbon/Carbon.h>
 
 #import "NJOutputKeyPress.h"
 #import "NJKeyInputField.h"
@@ -20,6 +21,25 @@ static CGEventSourceRef _NJHIDSource(void) {
         source = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
     });
     return source;
+}
+
+#pragma mark - Modifier key detection
+
+static BOOL _IsModifierKey(CGKeyCode keyCode) {
+    return keyCode == kVK_Shift || keyCode == kVK_RightShift
+        || keyCode == kVK_Control || keyCode == kVK_RightControl
+        || keyCode == kVK_Option || keyCode == kVK_RightOption
+        || keyCode == kVK_Command || keyCode == kVK_RightCommand;
+}
+
+static CGEventFlags _ModifierFlagForKeyCode(CGKeyCode keyCode) {
+    switch (keyCode) {
+        case kVK_Shift: case kVK_RightShift:     return kCGEventFlagMaskShift;
+        case kVK_Control: case kVK_RightControl:  return kCGEventFlagMaskControl;
+        case kVK_Option: case kVK_RightOption:    return kCGEventFlagMaskAlternate;
+        case kVK_Command: case kVK_RightCommand:  return kCGEventFlagMaskCommand;
+        default: return 0;
+    }
 }
 
 @implementation NJOutputKeyPress {
@@ -54,11 +74,38 @@ static CGEventSourceRef _NJHIDSource(void) {
     return output;
 }
 
+#pragma mark - Key send
+
 - (void)_sendKeyDown {
     CGEventRef keyDown = CGEventCreateKeyboardEvent(_NJHIDSource(), _keyCode, YES);
     CGEventPost(kCGHIDEventTap, keyDown);
     CFRelease(keyDown);
 }
+
+- (void)_sendKeyUp {
+    CGEventRef keyUp = CGEventCreateKeyboardEvent(_NJHIDSource(), _keyCode, NO);
+    CGEventPost(kCGHIDEventTap, keyUp);
+    CFRelease(keyUp);
+
+    // Safety net for modifier keys: verify the modifier was actually cleared
+    // from HID state after keyUp. If macOS or a system service (e.g. Dictation)
+    // restored it, force-clear via kCGEventFlagsChanged with flags=0.
+    if (_IsModifierKey(_keyCode)) {
+        CGEventFlags currentFlags = CGEventSourceFlagsState(kCGEventSourceStateHIDSystemState);
+        CGEventFlags targetFlag = _ModifierFlagForKeyCode(_keyCode);
+        if (currentFlags & targetFlag) {
+            CGEventRef clearEvent = CGEventCreateKeyboardEvent(_NJHIDSource(), _keyCode, NO);
+            CGEventSetType(clearEvent, kCGEventFlagsChanged);
+            CGEventSetFlags(clearEvent, 0);
+            CGEventPost(kCGHIDEventTap, clearEvent);
+            CFRelease(clearEvent);
+            NSLog(@"[NJOutputKeyPress] Force-cleared residual modifier flag 0x%llx for key %d",
+                  (unsigned long long)targetFlag, _keyCode);
+        }
+    }
+}
+
+#pragma mark - Trigger / Untrigger
 
 - (void)trigger {
     if (_keyCode == NJKeyInputFieldEmpty)
@@ -67,8 +114,11 @@ static CGEventSourceRef _NJHIDSource(void) {
     // Send the initial key down event immediately
     [self _sendKeyDown];
 
-    // Start repeat timer if enabled
-    if (_repeatEnabled) {
+    // Start repeat timer ONLY for non-modifier keys.
+    // Physical keyboards suppress modifier key repeat; we must do the same.
+    // Without this, holding a mapped modifier key sends a kCGEventFlagsChanged
+    // every ~90ms, which can confuse system services (e.g. Dictation).
+    if (_repeatEnabled && !_IsModifierKey(_keyCode)) {
         if (!_repeatManager)
             _repeatManager = [[NJKeyRepeatManager alloc] init];
         __weak __typeof(self) weakSelf = self;
@@ -83,9 +133,7 @@ static CGEventSourceRef _NJHIDSource(void) {
     [_repeatManager stopRepeating];
 
     if (_keyCode != NJKeyInputFieldEmpty) {
-        CGEventRef keyUp = CGEventCreateKeyboardEvent(_NJHIDSource(), _keyCode, NO);
-        CGEventPost(kCGHIDEventTap, keyUp);
-        CFRelease(keyUp);
+        [self _sendKeyUp];
     }
 }
 
