@@ -138,21 +138,21 @@ static CVReturn _updateDL(CVDisplayLinkRef displayLink,
         BOOL isActive = subInput.active;
 
         if (isActive) {
-            // Input just pressed or still held: get output from CURRENT mapping
             NJOutput *output = self.currentMapping[subInput];
             if (!output) continue;
+
+            // Guard: if a different output is already running for this input
+            // (e.g. after a Momentary mapping switch changed currentMapping),
+            // keep the original running — it will untrigger on button release.
+            NJOutput *existingOutput = _triggeredOutputs[inputUID];
+            if (existingOutput && existingOutput != output && existingOutput.running) {
+                continue;
+            }
+
             output.magnitude = subInput.magnitude;
             BOOL wasRunning = output.running;
             output.running = YES;
             if (!wasRunning) {
-                // If a different output was previously triggered for this input,
-                // untrigger it first to prevent modifier state leaks.
-                NJOutput *previousOutput = _triggeredOutputs[inputUID];
-                if (previousOutput && previousOutput != output && previousOutput.running) {
-                    previousOutput.magnitude = 0;
-                    previousOutput.running = NO;
-                }
-                // Remember which output we triggered for this input
                 _triggeredOutputs[inputUID] = output;
             }
             if ((output.running || output.magnitude != 0) && output.isContinuous)
@@ -437,6 +437,10 @@ static CVReturn _updateDL(CVDisplayLinkRef displayLink,
     
     if (newMappings.count) {
         _mappings = newMappings;
+        // Resolve all NJOutputMapping references BEFORE activating any mapping.
+        // This ensures _mapping strong refs are bound during the first trigger
+        // without requiring a separate lazy-resolution pass on user's first keypress.
+        [self postLoadProcess];
         if (selected >= newMappings.count)
             selected = 0;
         [self activateMapping:_mappings[selected]];
