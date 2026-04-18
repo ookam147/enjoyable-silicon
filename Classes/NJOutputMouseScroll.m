@@ -46,8 +46,9 @@
         CGEventRef scroll = CGEventCreateScrollWheelEvent(NULL,
                                                           kCGScrollEventUnitLine,
                                                           2,
-                                                          [self wheel:1],
-                                                          [self wheel:2]);
+                                                           [self wheel:1],
+                                                           [self wheel:2]);
+        CGEventSetFlags(scroll, 0);
         CGEventPost(kCGHIDEventTap, scroll);
         CFRelease(scroll);
     }
@@ -60,8 +61,9 @@
     CGEventRef scroll = CGEventCreateScrollWheelEvent(NULL,
                                                       kCGScrollEventUnitPixel,
                                                       2,
-                                                      [self wheel:1],
-                                                      [self wheel:2]);
+                                                       [self wheel:1],
+                                                       [self wheel:2]);
+    CGEventSetFlags(scroll, 0);
     CGEventPost(kCGHIDEventTap, scroll);
     CFRelease(scroll);
 

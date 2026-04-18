@@ -63,6 +63,7 @@
     else
         ++clickCount;
     CGEventSetIntegerValueField(click, kCGMouseEventClickState, clickCount);
+    CGEventSetFlags(click, 0);
     CGEventPost(kCGHIDEventTap, click);
     CFRelease(click);
     clickPosition = mouseLoc;
@@ -80,6 +81,7 @@
                                                CGPointMake(mouseLoc.x, height - mouseLoc.y),
                                                _button);
     CGEventSetIntegerValueField(click, kCGMouseEventClickState, clickCount);
+    CGEventSetFlags(click, 0);
     CGEventPost(kCGHIDEventTap, click);
     CFRelease(click);
 }

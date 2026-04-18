@@ -44,21 +44,32 @@
 
 - (void)trigger {
     EnjoyableApplicationDelegate *ctrl = (EnjoyableApplicationDelegate *)NSApplication.sharedApplication.delegate;
+
+    // Lazy resolution: if the mapping reference was lost (e.g. after a rename
+    // or the target was removed and recreated), try to find it by name.
+    if (!_mapping && self.mappingName) {
+        for (NJMapping *m in ctrl.ic.mappings) {
+            if ([m.name isEqualToString:self.mappingName]) {
+                self.mapping = m;
+                NSLog(@"[NJOutputMapping] Lazy-resolved mapping '%@'", self.mappingName);
+                break;
+            }
+        }
+    }
+
     if (!_mapping) {
+        NSLog(@"[NJOutputMapping] Cannot trigger: mapping reference is nil for target '%@'",
+              self.mappingName ?: @"(unknown)");
         return;
     }
 
     switch (_switchMode) {
         case NJMappingSwitchModeToggle:
-            // Toggle: simply switch to target mapping
             [ctrl.ic activateMapping:_mapping];
             self.mappingName = _mapping.name;
             break;
 
         case NJMappingSwitchModeMomentary:
-            // Momentary: remember current mapping, switch to target.
-            // Use activateMappingForcibly: to avoid overwriting _manualMapping,
-            // since this is a temporary switch that should be transparent.
             _previousMapping = ctrl.ic.currentMapping;
             [ctrl.ic activateMappingForcibly:_mapping];
             self.mappingName = _mapping.name;
@@ -67,8 +78,18 @@
 }
 
 - (void)untrigger {
+    // Lazy resolution (same as trigger)
+    if (!_mapping && self.mappingName) {
+        EnjoyableApplicationDelegate *ctrl = (EnjoyableApplicationDelegate *)NSApplication.sharedApplication.delegate;
+        for (NJMapping *m in ctrl.ic.mappings) {
+            if ([m.name isEqualToString:self.mappingName]) {
+                self.mapping = m;
+                break;
+            }
+        }
+    }
+
     if (_switchMode == NJMappingSwitchModeMomentary && _previousMapping) {
-        // Immediately switch back to previous mapping when button is released.
         EnjoyableApplicationDelegate *ctrl = (EnjoyableApplicationDelegate *)NSApplication.sharedApplication.delegate;
         [ctrl.ic activateMappingForcibly:_previousMapping];
         _previousMapping = nil;

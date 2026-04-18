@@ -17,7 +17,7 @@ typedef NS_ENUM(NSInteger, NJMappingSwitchMode) {
 
 @interface NJOutputMapping : NJOutput
 
-@property (nonatomic, weak) NJMapping *mapping;
+@property (nonatomic, strong) NJMapping *mapping;
 @property (nonatomic, copy) NSString *mappingName;
 @property (nonatomic, assign) NJMappingSwitchMode switchMode;
 

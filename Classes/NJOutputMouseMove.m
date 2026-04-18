@@ -183,6 +183,7 @@ static CGFloat pointRectSquaredDistance(NSPoint p, NSRect r) {
                                               0);
     CGEventSetIntegerValueField(move, kCGMouseEventDeltaX, (int)(mouseLoc.x - start.x));
     CGEventSetIntegerValueField(move, kCGMouseEventDeltaY, (int)(mouseLoc.y - start.y));
+    CGEventSetFlags(move, 0);
     CGEventPost(kCGHIDEventTap, move);
 
     if (CGEventSourceButtonState(kCGEventSourceStateHIDSystemState, kCGMouseButtonLeft)) {

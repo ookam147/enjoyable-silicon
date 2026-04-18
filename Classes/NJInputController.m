@@ -145,6 +145,13 @@ static CVReturn _updateDL(CVDisplayLinkRef displayLink,
             BOOL wasRunning = output.running;
             output.running = YES;
             if (!wasRunning) {
+                // If a different output was previously triggered for this input,
+                // untrigger it first to prevent modifier state leaks.
+                NJOutput *previousOutput = _triggeredOutputs[inputUID];
+                if (previousOutput && previousOutput != output && previousOutput.running) {
+                    previousOutput.magnitude = 0;
+                    previousOutput.running = NO;
+                }
                 // Remember which output we triggered for this input
                 _triggeredOutputs[inputUID] = output;
             }
@@ -182,8 +189,13 @@ static CVReturn _updateDL(CVDisplayLinkRef displayLink,
 }
 
 - (void)HIDManager:(NJHIDManager *)manager valueChanged:(IOHIDValueRef)value {
-    if (self.simulatingEvents && !NSApplication.sharedApplication.isActive) {
+    if (self.simulatingEvents) {
+        // Always process trigger/untrigger to prevent modifier state leaks,
+        // even when the app is in the foreground.
         [self runOutputForValue:value];
+        if (NSApplication.sharedApplication.isActive) {
+            [self showOutputForValue:value];
+        }
     } else {
         [self showOutputForValue:value];
     }
@@ -221,6 +233,22 @@ static CVReturn _updateDL(CVDisplayLinkRef displayLink,
     NJDevice *match = [self findDeviceByRef:device];
     if (match) {
         NSUInteger idx = [_devices indexOfObjectIdenticalTo:match];
+        // Release triggered outputs for this device before removing it
+        if (_triggeredOutputs.count) {
+            NSString *prefix = [NSString stringWithFormat:@"%@:", match.uid];
+            NSMutableArray *keysToRemove = [NSMutableArray array];
+            for (NSString *uid in _triggeredOutputs) {
+                if ([uid hasPrefix:prefix]) {
+                    NJOutput *output = _triggeredOutputs[uid];
+                    if (output.running) {
+                        output.magnitude = 0;
+                        output.running = NO;
+                    }
+                    [keysToRemove addObject:uid];
+                }
+            }
+            [_triggeredOutputs removeObjectsForKeys:keysToRemove];
+        }
         [_devices removeObjectAtIndex:idx];
         [self.delegate inputController:self didRemoveDeviceAtIndex:(NSInteger)idx];
     }
@@ -261,12 +289,28 @@ static CVReturn _updateDL(CVDisplayLinkRef displayLink,
 }
 
 - (void)stopHid {
+    [self forceReleaseAllTriggeredOutputs];
     [_HIDManager stop];
+}
+
+- (void)forceReleaseAllTriggeredOutputs {
+    if (!_triggeredOutputs) return;
+    NSArray<NJOutput *> *allOutputs = _triggeredOutputs.allValues.copy;
+    [_triggeredOutputs removeAllObjects];
+    for (NJOutput *output in allOutputs) {
+        if (output.running) {
+            output.magnitude = 0;
+            output.running = NO;
+        }
+    }
 }
 
 - (void)setSimulatingEvents:(BOOL)simulatingEvents {
     if (simulatingEvents != _simulatingEvents) {
         _simulatingEvents = simulatingEvents;
+        if (!simulatingEvents) {
+            [self forceReleaseAllTriggeredOutputs];
+        }
         NSString *name = simulatingEvents
             ? NJEventSimulationStarted
             : NJEventSimulationStopped;
