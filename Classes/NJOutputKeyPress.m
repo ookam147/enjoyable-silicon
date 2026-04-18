@@ -56,7 +56,6 @@ static CGEventSourceRef _NJHIDSource(void) {
 
 - (void)_sendKeyDown {
     CGEventRef keyDown = CGEventCreateKeyboardEvent(_NJHIDSource(), _keyCode, YES);
-    CGEventSetFlags(keyDown, 0);
     CGEventPost(kCGHIDEventTap, keyDown);
     CFRelease(keyDown);
 }
@@ -85,7 +84,6 @@ static CGEventSourceRef _NJHIDSource(void) {
 
     if (_keyCode != NJKeyInputFieldEmpty) {
         CGEventRef keyUp = CGEventCreateKeyboardEvent(_NJHIDSource(), _keyCode, NO);
-        CGEventSetFlags(keyUp, 0);
         CGEventPost(kCGHIDEventTap, keyUp);
         CFRelease(keyUp);
     }
