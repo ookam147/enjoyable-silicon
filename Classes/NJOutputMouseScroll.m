@@ -8,6 +8,18 @@
 #import <CoreGraphics/CoreGraphics.h>
 #import "NJOutputMouseScroll.h"
 
+// Private event source so scroll events are distinguishable from
+// real hardware events. Tools like iScroll/Scroll Reverser that use
+// CGEventTap can inspect the source to skip software-generated events.
+static CGEventSourceRef _NJScrollSource(void) {
+    static CGEventSourceRef source;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        source = CGEventSourceCreate(kCGEventSourceStatePrivate);
+    });
+    return source;
+}
+
 @implementation NJOutputMouseScroll
 
 + (NSString *)serializationCode {
@@ -43,13 +55,14 @@
 
 - (void)trigger {
     if (!_smooth) {
-        CGEventRef scroll = CGEventCreateScrollWheelEvent(NULL,
+        CGEventRef scroll = CGEventCreateScrollWheelEvent(_NJScrollSource(),
                                                           kCGScrollEventUnitLine,
                                                           2,
                                                            [self wheel:1],
                                                            [self wheel:2]);
         CGEventSetFlags(scroll, 0);
-        CGEventPost(kCGHIDEventTap, scroll);
+        // Post to session tap to bypass HID-level event taps (e.g. iScroll)
+        CGEventPost(kCGSessionEventTap, scroll);
         CFRelease(scroll);
     }
 }
@@ -58,13 +71,14 @@
     if (self.magnitude < 0.05f)
         return NO; // dead zone
     
-    CGEventRef scroll = CGEventCreateScrollWheelEvent(NULL,
+    CGEventRef scroll = CGEventCreateScrollWheelEvent(_NJScrollSource(),
                                                       kCGScrollEventUnitPixel,
                                                       2,
                                                        [self wheel:1],
                                                        [self wheel:2]);
     CGEventSetFlags(scroll, 0);
-    CGEventPost(kCGHIDEventTap, scroll);
+    // Post to session tap to bypass HID-level event taps (e.g. iScroll)
+    CGEventPost(kCGSessionEventTap, scroll);
     CFRelease(scroll);
 
     return YES;
